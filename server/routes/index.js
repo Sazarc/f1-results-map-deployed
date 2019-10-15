@@ -25,6 +25,8 @@ router.get('/', function(req, res, next) {
     checkStorages(season+'-results').then((results) => {
         checkStorages(season+'-data').then((data) => {
             if(results){
+                results = JSON.parse(results);
+                data = JSON.parse(data);
                 getSeasonResults(season, data.MRData.total, data.MRData.RaceTable.Races, results.MRData.RaceTable.Races).then((seasonResults) => {
                     res.locals.ret = seasonResults;
                     next();
@@ -148,17 +150,18 @@ function getFlag(nationality){
         url = "https://restcountries.eu/rest/v2/demonym/"+nationality+"?fields=flag";
     }
 
-    let cached = cache.get(nationality.toLowerCase());
-
-    if(cached){
-        return cached;
-    }
-    else{
+    return checkStorages(nationality.toLowerCase()).then((result) => {
+        if(result){
+            return result;
+        }
+    }).catch((e) => {
         return axios.get(url).then((response) => {
-            cache.put(nationality.toLowerCase(), response.data[0].flag, 180000000);
-            return response.data[0].flag
-        }).catch((e) => {console.log("Flag not found, "+nationality)});
-    }
+            storeNew(nationality.toLowerCase(), response.data[0].flag);
+            return (response.data[0].flag);
+        }).catch((e) => {
+            console.log("Flag not found");
+        });
+    })
 }
 
 async function checkStorages(key){
@@ -166,14 +169,14 @@ async function checkStorages(key){
         redisClient.get(key, (err, result) => {
             // If that key exist in Redis store
             if (result) {
-                resolve(JSON.parse(result));
+                resolve(result);
             } else { // Key does not exist in Redis store
                 blobService.getBlobToText(containerName, key, (err, result) => {
                     if (err) {
                         reject("blob no existo");
                     } else {
                         redisClient.setex(key, redisTime, result);
-                        resolve(JSON.parse(result));
+                        resolve(result);
                     }
                 });
                 //
@@ -182,15 +185,17 @@ async function checkStorages(key){
     })
 }
 
-function storeNew(key, toStore){
-    blobService.createBlockBlobFromText(containerName, key, toStore, err => {
-        if (err) {
-            console.log(err);
-        } else {
-            console.log(`Text "${key}" is written to blob storage`);
-        }
-    });
+async function storeNew(key, toStore){
+    return new Promise((resolve, reject) => {
+        blobService.createBlockBlobFromText(containerName, key, toStore, err => {
+            if (err) {
+                reject(err);
+            } else {
+                resolve({message: `Text "${key}" is written to blob storage`});
+            }
+        });
     redisClient.setex(key, redisTime, toStore);
+    });
 }
 
 module.exports = router;
