@@ -22,8 +22,8 @@ router.get('/', function(req, res, next) {
     let season = req.query.season;
     let url = "http://ergast.com/api/f1/" + season + "/results.json?limit=500";
 
-    checkStorages(season+'-results').then((results) => {
-        checkStorages(season+'-data').then((data) => {
+    checkStorage(season+'/results').then((results) => {
+        checkStorage(season+'/data').then((data) => {
             if(results){
                 results = JSON.parse(results);
                 data = JSON.parse(data);
@@ -41,8 +41,8 @@ router.get('/', function(req, res, next) {
             });
             try{
                 // cache response for 30 mins
-                storeNew(season+'-results', JSON.stringify(rsp));
-                storeNew(season+'-data', JSON.stringify(seasonData));
+                storeNew(season+'/results', JSON.stringify(rsp));
+                storeNew(season+'/data', JSON.stringify(seasonData));
                 //json data to respond to request
                 let data = await getSeasonResults(season, parseInt(seasonData.MRData.total), seasonData.MRData.RaceTable.Races, rsp.MRData.RaceTable.Races);
                 // store in local response for next to respond
@@ -146,11 +146,17 @@ function getFlag(nationality){
     else if(nationality.toLowerCase() === 'indian'){
         return "https://restcountries.eu/data/ind.svg";
     }
+    else if(nationality.toLowerCase() === "rhodesian"){
+        return "https://upload.wikimedia.org/wikipedia/commons/0/02/Flag_of_Rhodesia_%281968–1979%29.svg";
+    }
+    else if(nationality.toLowerCase() === 'east german'){
+        return "https://upload.wikimedia.org/wikipedia/commons/a/a1/Flag_of_East_Germany.svg";
+    }
     else{
         url = "https://restcountries.eu/rest/v2/demonym/"+nationality+"?fields=flag";
     }
 
-    return checkStorages(nationality.toLowerCase()).then((result) => {
+    return checkStorage(nationality.toLowerCase()).then((result) => {
         if(result){
             return result;
         }
@@ -159,12 +165,12 @@ function getFlag(nationality){
             storeNew(nationality.toLowerCase(), response.data[0].flag);
             return (response.data[0].flag);
         }).catch((e) => {
-            console.log("Flag not found");
+            console.log(`Flag not found: ${nationality}`);
         });
     })
 }
 
-async function checkStorages(key){
+async function checkStorage(key){
     return new Promise((resolve, reject) => {
         redisClient.get(key, (err, result) => {
             // If that key exist in Redis store

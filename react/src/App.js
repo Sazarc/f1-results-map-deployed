@@ -6,8 +6,9 @@ import OptionSelect from './Option-Select';
 import Content from "./Content";
 import {PulseLoader} from 'react-spinners';
 
-export const apiLink = "http://127.0.0.1:3030";
-// export const apiLink = 'http://' + window.location.host + ':3030';
+//export const apiLink = "http://127.0.0.1:3030";
+export const apiLink = 'http://' + window.location.hostname + ':3030';
+// export const apiLink = process.env.REACT_APP_APIURL;
 
 export default class App extends Component{
     state = {
